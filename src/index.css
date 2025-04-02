@@ -1,0 +1,65 @@
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/500.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/playfair-display/400.css';
+@import '@fontsource/playfair-display/500.css';
+@import '@fontsource/playfair-display/600.css';
+@import '@fontsource/open-sans/400.css';
+@import '@fontsource/open-sans/600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:root {
+  --primary: #5c1374;
+  --primary-dark: #4a0f5e;
+  --black: #1a1a1a;
+  --gold: #ffd700;
+  --rose-gold: #b76e79;
+}
+
+@layer base {
+  body {
+    @apply bg-black text-white font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-white rounded-full px-6 py-2 
+           transition-all duration-300 ease-in-out font-semibold
+           hover:shadow-[0_0_15px_rgba(92,19,116,0.5)];
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center gap-1 text-sm font-medium
+           text-gray-400 hover:text-white transition-colors duration-200;
+  }
+
+  .nav-item.active {
+    @apply text-primary;
+  }
+}
