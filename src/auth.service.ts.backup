@@ -1,0 +1,175 @@
+import { supabaseClient } from './lib/supabase';
+import { Profile } from './types/profile';
+
+export const signInWithEmail = async (email: string, password: string) => {
+  try {
+    console.log('[AuthService] Iniciando login para:', email);
+    
+    // Primeiro fazer login
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password
+    });
+
+    if (error) {
+      console.error('[AuthService] Erro de autenticação:', error);
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('Email ou senha incorretos');
+      }
+      throw new Error('Erro ao fazer login. Tente novamente.');
+    }
+
+    if (!data.user || !data.session) {
+      console.error('[AuthService] Usuário ou sessão não encontrados');
+      throw new Error('Erro ao fazer login. Tente novamente.');
+    }
+
+    // Depois buscar o perfil
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError) {
+      console.error('[AuthService] Erro ao buscar perfil:', profileError);
+      // Não lançar erro aqui, apenas retornar o usuário sem perfil
+    }
+
+    console.log('[AuthService] Login bem sucedido para:', data.user.email);
+    return { 
+      user: data.user, 
+      session: data.session, 
+      profile: profile || null 
+    };
+  } catch (error: any) {
+    console.error('[AuthService] Erro no login:', error);
+    throw error;
+  }
+};
+
+export const signUpWithEmail = async (email: string, password: string) => {
+  try {
+    console.log('[AuthService] Iniciando registro para:', email);
+
+    // Verificar se o email já existe
+    const { data: existingUser } = await supabaseClient
+      .from('profiles')
+      .select('email')
+      .eq('email', email.trim().toLowerCase())
+      .single();
+
+    if (existingUser) {
+      throw new Error('Este email já está cadastrado');
+    }
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: {
+        emailRedirectTo: window.location.origin + '/login'
+      }
+    });
+
+    if (error) throw error;
+    if (!data.user) throw new Error('Usuário não criado');
+
+    console.log('[AuthService] Registro bem sucedido para:', data.user.email);
+    return { user: data.user, session: data.session };
+  } catch (error) {
+    console.error('[AuthService] Erro no registro:', error);
+    throw error;
+  }
+};
+
+export const signOut = async () => {
+  try {
+    console.log('[AuthService] Iniciando logout');
+    
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
+    
+    // Limpar storage
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.clear();
+      window.localStorage.removeItem('sb-auth-token');
+      window.localStorage.removeItem('supabase.auth.token');
+    }
+    
+    console.log('[AuthService] Logout completo');
+  } catch (error) {
+    console.error('[AuthService] Erro no logout:', error);
+    throw error;
+  }
+};
+
+export const getSession = async () => {
+  try {
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    
+    if (!session) {
+      console.log('[AuthService] Nenhuma sessão encontrada');
+      return null;
+    }
+    
+    // Verificar se o token ainda é válido
+    if (session.expires_at && new Date(session.expires_at * 1000) < new Date()) {
+      console.log('[AuthService] Sessão expirada');
+      await signOut();
+      return null;
+    }
+    
+    return session;
+  } catch (error) {
+    console.error('[AuthService] Erro ao obter sessão:', error);
+    return null;
+  }
+};
+
+export const getUserProfile = async (userId: string): Promise<Profile | null> => {
+  try {
+    console.log('[AuthService] Buscando perfil para:', userId);
+    
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('[AuthService] Erro ao buscar perfil:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.log('[AuthService] Perfil não encontrado para:', userId);
+      return null;
+    }
+
+    console.log('[AuthService] Perfil encontrado:', data);
+    return data as Profile;
+  } catch (error) {
+    console.error('[AuthService] Erro inesperado ao buscar perfil:', error);
+    return null;
+  }
+};
+
+export const updateProfile = async (userId: string, updates: Partial<Profile>) => {
+  try {
+    console.log('[AuthService] Atualizando perfil para:', userId);
+    
+    const { error } = await supabaseClient
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId);
+
+    if (error) throw error;
+    
+    console.log('[AuthService] Perfil atualizado com sucesso');
+    return true;
+  } catch (error) {
+    console.error('[AuthService] Erro ao atualizar perfil:', error);
+    throw error;
+  }
+}; 
